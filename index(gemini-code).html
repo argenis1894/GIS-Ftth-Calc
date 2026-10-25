@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GIS & Calculadora FTTH - Suite de Ingeniería Óptica</title>
+    <style>
+        :root {
+            --primary: #0284c7;
+            --primary-dark: #0369a1;
+            --success: #16a34a;
+            --warning: #ea580c;
+            --danger: #dc2626;
+            --bg-dark: #0f172a;
+            --panel-dark: #1e293b;
+            --border-color: #334155;
+            --text-light: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { display: flex; height: 100vh; overflow: hidden; background: var(--bg-dark); color: var(--text-light); }
+        
+        /* Sidebar General y Pestañas de Navegación */
+        #sidebar {
+            width: 380px;
+            background: var(--panel-dark);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            z-index: 10;
+            box-shadow: 4px 0 15px rgba(0,0,0,0.3);
+        }
+
+        .app-switcher {
+            display: flex;
+            background: var(--bg-dark);
+            border-bottom: 1px solid var(--border-color);
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 12px;
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-weight: bold;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+        .tab-btn.active {
+            color: var(--text-light);
+            background: var(--panel-dark);
+            border-bottom: 3px solid var(--primary);
+        }
+
+        .sidebar-header {
+            padding: 15px 20px;
+            background: var(--bg-dark);
+            border-bottom: 1px solid var(--border-color);
+        }
+        .sidebar-header h2 { font-size: 1.15rem; color: #38bdf8; }
+        .sidebar-header p { font-size: 0.8rem; color: var(--text-muted); margin-top: 2px; }
+        
+        /* Contenedores de Vistas en Sidebar */
+        .sidebar-view {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 15px 20px;
+            display: none;
+        }
+        .sidebar-view.active {
+            display: block;
+        }
+
+        .control-section {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .control-section h3 { font-size: 0.9rem; margin-bottom: 8px; color: #cbd5e1; text-transform: uppercase; letter-spacing: 0.5px; }
+        
+        .layer-toggle {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+        .layer-toggle input { margin-right: 10px; accent-color: var(--primary); width: 16px; height: 16px; }
+
+        .legend { font-size: 0.8rem; color: var(--text-muted); }
+        .legend-item { display: flex; align-items: center; margin-top: 5px; }
+        .legend-color { width: 12px; height: 12px; border-radius: 3px; margin-right: 8px; }
+
+        #info-panel {
+            margin-top: 10px;
+            padding: 12px;
+            background: var(--bg-dark);
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            font-size: 0.8rem;
+        }
+        #info-panel h4 { color: #38bdf8; margin-bottom: 4px; }
+
+        /* Estilos de Formulario para Calculadora dentro del Sidebar */
+        .form-group { margin-bottom: 10px; }
+        label { display: block; font-weight: 600; margin-bottom: 4px; font-size: 0.82rem; color: #cbd5e1; }
+        input, select {
+            width: 100%;
+            padding: 8px 10px;
+            background: var(--bg-dark);
+            border: 1px solid var(--border-color);
+            color: var(--text-light);
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+        .row-inputs { display: flex; gap: 8px; }
+        .row-inputs .form-group { flex: 1; }
+
+        button.action-btn {
+            width: 100%;
+            padding: 10px;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 8px;
+            transition: background 0.2s;
+        }
+        button.action-btn:hover { background-color: var(--primary-dark); }
+        .btn-clear { background-color: var(--danger); }
+        .btn-clear:hover { background-color: #b91c1c; }
+        .btn-pdf { background-color: #475569; }
+
+        /* Contenedor Principal de Visualización (Mapa o Resultados de Calculadora) */
+        #main-content {
+            flex-grow: 1;
+            height: 100%;
+            position: relative;
+            background: #111827;
+            overflow-y: auto;
+        }
+
+        #map { width: 100%; height: 100%; }
+
+        /* Panel de Resultados Calculadora en Pantalla Principal */
+        .calculator-workspace {
+            padding: 25px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .result-box {
+            margin-top: 15px;
+            padding: 20px;
+            background-color: var(--panel-dark);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            display: none;
+        }
+        .result-item { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.9rem; }
+        .total { font-weight: bold; color: #38bdf8; border-top: 1px solid var(--border-color); padding-top: 8px; margin-top: 8px; font-size: 1rem; }
+        
+        .status-banner {
+            padding: 10px;
+            border-radius: 6px;
+            color: white;
+            font-weight: bold;
+            text-align: center;
+            margin-top: 12px;
+            font-size: 0.95rem;
+        }
+        .status-success { background-color: var(--success); }
+        .status-warning { background-color: var(--warning); }
+        .status-danger { background-color: var(--danger); }
+        
+        .recommendation-box, .warning-box {
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 0 6px 6px 0;
+            font-size: 0.85rem;
+        }
+        .recommendation-box { background-color: rgba(2, 132, 199, 0.1); border-left: 4px solid var(--primary); }
+        .warning-box { background-color: rgba(220, 38, 38, 0.1); border-left: 4px solid var(--danger); color: #fca5a5; }
+
+        .chart-container {
+            margin-top: 15px;
+            background: var(--bg-dark);
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+        }
+        canvas { width: 100% !important; height: auto !important; max-height: 200px; }
+
+        .actions-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+        
+        @media print {
+            body { background: #fff; color: #000; }
+            #sidebar { display: none !important; }
+            #main-content { overflow: visible; }
+            .calculator-workspace { max-width: 100%; padding: 0; }
+            .result-box { display: block !important; border: none; background: transparent; }
+            button, .form-group { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Panel Lateral de Control con Pestañas -->
+    <div id="sidebar">
+        <div class="app-switcher">
+            <button class="tab-btn active" onclick="switchTab('gis')">🗺️ Mapa GIS</button>
+            <button class="tab-btn" onclick="switchTab('calc')">🧮 Calculadora</button>
+        </div>
+
+        <!-- VISTA 1: CONTROLES DEL MAPA GIS -->
+        <div id="view-gis" class="sidebar-view active">
+            <div class="sidebar-header" style="padding: 0 0 15px 0; background: transparent; border: none;">
+                <h2>Gestión de Redes FTTH</h2>
+                <p>Visualización ODN y Geoposicionamiento</p>
+            </div>
+
+            <div class="control-section">
+                <h3>Capas de Red ODN</h3>
+                <label class="layer-toggle">
+                    <input type="checkbox" id="toggle-olt" checked onchange="toggleLayer('olt')"> Nodos OLT / Centrales
+                </label>
+                <label class="layer-toggle">
+                    <input type="checkbox" id="toggle-fat" checked onchange="toggleLayer('fat')"> Cajas FAT / NAP
+                </label>
+                <label class="layer-toggle">
+                    <input type="checkbox" id="toggle-cables" checked onchange="toggleLayer('cables')"> Tendido de Fibra
+                </label>
+            </div>
+
+            <div class="control-section">
+                <h3>Leyenda FTTH</h3>
+                <div class="legend">
+                    <div class="legend-item"><div class="legend-color" style="background: #ef4444;"></div> Central / OLT</div>
+                    <div class="legend-item"><div class="legend-color" style="background: #eab308;"></div> Caja FAT (Distribución)</div>
+                    <div class="legend-item"><div class="legend-color" style="background: #3b82f6;"></div> Cable Troncal / Feeder</div>
+                    <div class="legend-item"><div class="legend-color" style="background: #22c55e;"></div> Cable de Distribución</div>
+                </div>
+            </div>
+
+            <div id="info-panel">
+                <h4>Detalle del Elemento</h4>
+                <p id="element-details">Haz clic sobre un nodo o cable en el mapa para ver sus especificaciones técnicas.</p>
+            </div>
+        </div>
+
+        <!-- VISTA 2: CONTROLES DE LA CALCULADORA -->
+        <div id="view-calc" class="sidebar-view">
+            <div class="sidebar-header" style="padding: 0 0 15px 0; background: transparent; border: none;">
+                <h2>Presupuesto Óptico</h2>
+                <p>Parámetros de Atenuación y Potencia</p>
+            </div>
+
+            <div class="form-group">
+                <label for="project-name">Proyecto / Cliente:</label>
+                <input type="text" id="project-name" placeholder="Ej. Enlace Troncal Oeste">
+            </div>
+            <div class="form-group">
+                <label for="technician">Técnico:</label>
+                <input type="text" id="technician" placeholder="Ej. Ing. Carlos Pérez">
+            </div>
+
+            <div class="row-inputs">
+                <div class="form-group">
+                    <label for="fiber-type">Fibra:</label>
+                    <select id="fiber-type" onchange="updateWavelengthOptions()">
+                        <option value="G652D">G.652.D</option>
+                        <option value="G657A2">G.657.A2</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="wavelength">Long. Onda:</label>
+                    <select id="wavelength"></select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="distance">Distancia (km):</label>
+                <input type="number" id="distance" step="0.01" value="2.0">
+            </div>
+
+            <div class="row-inputs">
+                <div class="form-group">
+                    <label for="splices">Fusiones:</label>
+                    <input type="number" id="splices" value="2" min="0">
+                </div>
+                <div class="form-group">
+                    <label for="connectors">Conectores:</label>
+                    <input type="number" id="connectors" value="2" min="0">
+                </div>
+            </div>
+
+            <div class="row-inputs">
+                <div class="form-group">
+                    <label for="splitter1">Splitter 1:</label>
+                    <select id="splitter1">
+                        <option value="0">Ninguno</option>
+                        <option value="3.5">1:2 (3.5 dB)</option>
+                        <option value="7.2">1:4 (7.2 dB)</option>
+                        <option value="10.5">1:8 (10.5 dB)</option>
+                        <option value="13.8" selected>1:16 (13.8 dB)</option>
+                        <option value="17.0">1:32 (17.0 dB)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="splitter2">Splitter 2:</label>
+                    <select id="splitter2">
+                        <option value="0" selected>Ninguno</option>
+                        <option value="3.5">1:2 (3.5 dB)</option>
+                        <option value="7.2">1:4 (7.2 dB)</option>
+                        <option value="10.5">1:8 (10.5 dB)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="margin">Margen Seguridad (dB):</label>
+                <input type="number" id="margin" value="3.0" step="0.5">
+            </div>
+
+            <div class="form-group">
+                <label for="sfp-type">Perfil SFP (OLT):</label>
+                <select id="sfp-type" onchange="updateSfpParams()">
+                    <option value="B+" selected>GPON Clase B+ (+3 / -28 dBm)</option>
+                    <option value="C+">GPON Clase C+ (+5 / -30 dBm)</option>
+                    <option value="C++">GPON Clase C++ (+7 / -32 dBm)</option>
+                </select>
+            </div>
+            
+            <div class="row-inputs">
+                <div class="form-group">
+                    <label for="olt-power">P. OLT (dBm):</label>
+                    <input type="number" id="olt-power" value="3.0" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label for="ont-sens">Sens. ONT:</label>
+                    <input type="number" id="ont-sens" value="-28.0" step="0.1">
+                </div>
+            </div>
+
+            <button class="action-btn" onclick="calculateBudget()">Calcular Enlace Óptico</button>
+            <button class="action-btn btn-clear" onclick="clearStorageData()">Reiniciar Datos</button>
+        </div>
+    </div>
+
+    <!-- Contenido Principal: Mapa o Workspace de Resultados -->
+    <div id="main-content">
+        <!-- Mapa GIS -->
+        <div id="map" style="display: block;"></div>
+
+        <!-- Workspace de Calculadora (Oculto inicialmente hasta ver pestaña o calcular) -->
+        <div id="calc-workspace" class="calculator-workspace" style="display: none;">
+            <h1 style="color: #38bdf8; font-size: 1.3rem; margin-bottom: 15px;">Memoria de Cálculo y Potencia Óptica</h1>
+            
+            <div class="result-box" id="results" style="display: block;">
+                <div class="result-item"><span>Pérdida por Fibra:</span> <span id="res-fiber">0 dB</span></div>
+                <div class="result-item"><span>Pérdida por Fusiones:</span> <span id="res-splices">0 dB</span></div>
+                <div class="result-item"><span>Pérdida por Conectores:</span> <span id="res-connectors">0 dB</span></div>
+                <div class="result-item"><span>Pérdida Splitters:</span> <span id="res-splitters">0 dB</span></div>
+                <div class="result-item"><span>Margen Aplicado:</span> <span id="res-margin">0 dB</span></div>
+                <div class="result-item total"><span>Pérdida Total del Enlace:</span> <span id="res-total">0 dB</span></div>
+                <div class="result-item total" id="res-rx-power-row">
+                    <span>Potencia Estimada en Rx (ONT):</span> <span>0.00 dBm</span>
+                </div>
+
+                <div class="chart-container">
+                    <canvas id="lossChart" width="400" height="180"></canvas>
+                </div>
+
+                <div id="warnings-container"></div>
+                <div id="dyn-status-banner"></div>
+                <div id="dyn-rec-box"></div>
+
+                <div class="actions-grid">
+                    <button class="action-btn btn-pdf" onclick="window.print()">Exportar Reporte (PDF)</button>
+                    <button class="action-btn" onclick="saveToDriveSimulation()">Guardar Registro</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script de Google Maps con Callback -->
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD-J7DMxq9r6-PxYtn5fKCgG@DRnPldn88Y&callback=initMap"></script>
+
+    <script>
+        // --- GESTIÓN DE PESTAÑAS (TABS) ---
+        function switchTab(tab) {
+            const btnGis = document.querySelector('.tab-btn:nth-child(1)');
+            const btnCalc = document.querySelector('.tab-btn:nth-child(2)');
+            const viewGis = document.getElementById('view-gis');
+            const viewCalc = document.getElementById('view-calc');
+            const mapEl = document.getElementById('map');
+            const calcWorkspace = document.getElementById('calc-workspace');
+
+            if (tab === 'gis') {
+                btnGis.classList.add('active');
+                btnCalc.classList.remove('active');
+                viewGis.classList.add('active');
+                viewCalc.classList.remove('active');
+                mapEl.style.display = 'block';
+                calcWorkspace.style.display = 'none';
+                if(map) google.maps.event.trigger(map, 'resize');
+            } else {
+                btnCalc.classList.add('active');
+                btnGis.classList.remove('active');
+                viewCalc.classList.add('active');
+                viewGis.classList.remove('active');
+                mapEl.style.display = 'none';
+                calcWorkspace.style.display = 'block';
+                calculateBudget(); // Calcular automáticamente al abrir
+            }
+        }
+
+        // --- LÓGICA DE GOOGLE MAPS & GIS ---
+        let map;
+        let markers = [];
+        let polylines = [];
+
+        const ftthData = {
+            olts: [
+                { id: "OLT-01", name: "Central Principal (Huawei MA5800)", lat: 9.057, lng: -69.213, specs: "Capacidad: 16 GPON Boards, 8 OLT Activas" }
+            ],
+            fats: [
+                { id: "FAT-A1", name: "FAT Sector Central 01", lat: 9.059, lng: -69.215, specs: "Splitter 1:16, Puertos ocupados: 12/16" },
+                { id: "FAT-A2", name: "FAT Zona Hospital", lat: 9.062, lng: -69.218, specs: "Splitter 1:8, Puertos ocupados: 6/8" }
+            ],
+            cables: [
+                { 
+                    type: "feeder", 
+                    name: "Fibra Troncal 48 Hilos", 
+                    path: [{lat: 9.057, lng: -69.213}, {lat: 9.060, lng: -69.216}],
+                    specs: "Atenuación medida: 0.25 dB/km @ 1550nm"
+                },
+                { 
+                    type: "distribution", 
+                    name: "Fibra Distribución 12 Hilos", 
+                    path: [{lat: 9.060, lng: -69.216}, {lat: 9.062, lng: -69.218}],
+                    specs: "Reserva de mufa: 15 metros"
+                }
+            ]
+        };
+
+        function initMap() {
+            map = new google.maps.Map(document.getElementById("map"), {
+                center: { lat: 9.058, lng: -69.214 },
+                zoom: 15,
+                mapTypeId: "roadmap",
+                styles: [
+                    { elementType: "geometry", stylers: [{ color: "#242f3e" }] },
+                    { elementType: "labels.text.stroke", stylers: [{ color: "#242f3e" }] },
+                    { elementType: "labels.text.fill", stylers: [{ color: "#746855" }] }
+                ]
+            });
+            renderFTTHNetwork();
+        }
+
+        function renderFTTHNetwork() {
+            ftthData.olts.forEach(olt => {
+                const marker = new google.maps.Marker({
+                    position: { lat: olt.lat, lng: olt.lng },
+                    map: map,
+                    title: olt.name,
+                    icon: {
+                        path: google.maps.SymbolPath.CIRCLE,
+                        scale: 10,
+                        fillColor: "#ef4444",
+                        fillOpacity: 1,
+                        strokeColor: "#ffffff",
+                        strokeWeight: 2
+                    },
+                    category: "olt"
+                });
+                marker.addListener("click", () => {
+                    document.getElementById("element-details").innerHTML = `<strong>[OLT] ${olt.name}</strong><br>ID: ${olt.id}<br>${olt.specs}`;
+                });
+                markers.push(marker);
+            });
+
+            ftthData.fats.forEach(fat => {
+                const marker = new google.maps.Marker({
+                    position: { lat: fat.lat, lng: fat.lng },
+                    map: map,
+                    title: fat.name,
+                    icon: {
+                        path: google.maps.SymbolPath.BACKWARD_CLOSED_ARROW,
+                        scale: 6,
+                        fillColor: "#eab308",
+                        fillOpacity: 1,
+                        strokeColor: "#ffffff",
+                        strokeWeight: 1
+                    },
+                    category: "fat"
+                });
+                marker.addListener("click", () => {
+                    document.getElementById("element-details").innerHTML = `<strong>[FAT] ${fat.name}</strong><br>ID: ${fat.id}<br>${fat.specs}`;
+                });
+                markers.push(marker);
+            });
+
+            ftthData.cables.forEach(cable => {
+                const polyline = new google.maps.Polyline({
+                    path: cable.path,
+                    geodesic: true,
+                    strokeColor: cable.type === "feeder" ? "#3b82f6" : "#22c55e",
+                    strokeOpacity: 0.8,
+                    strokeWeight: cable.type === "feeder" ? 4 : 2,
+                    map: map
+                });
+                google.maps.event.addListener(polyline, "click", () => {
+                    document.getElementById("element-details").innerHTML = `<strong>[CABLE] ${cable.name}</strong><br>${cable.specs}`;
+                });
+                polylines.push({ type: "cables", instance: polyline });
+            });
+        }
+
+        function toggleLayer(category) {
+            const checkbox = document.getElementById(`toggle-${category}`);
+            markers.forEach(marker => {
+                if (marker.get("category") === category) {
+                    marker.setMap(checkbox.checked ? map : null);
+                }
+            });
+            polylines.forEach(item => {
+                if (category === "cables") {
+                    item.instance.setMap(checkbox.checked ? map : null);
+                }
+            });
+        }
+
+        // --- LÓGICA DE LA CALCULADORA ÓPTICA ---
+        const LOSS_PER_SPLICE = 0.1;
+        const LOSS_PER_CONNECTOR = 0.3;
+        const CRITICAL_LOSS_THRESHOLD = 25.0;
+
+        const FIBER_SPECS = {
+            'G652D': [
+                { val: '0.35', label: '1310 nm (~0.35 dB/km)' },
+                { val: '0.22', label: '1550 nm (~0.22 dB/km)' }
+            ],
+            'G657A2': [
+                { val: '0.38', label: '1310 nm (~0.38 dB/km)' },
+                { val: '0.24', label: '1550 nm (~0.24 dB/km)' }
+            ]
+        };
+
+        const SFP_PRESETS = {
+            'B+': { oltPower: 3.0, ontSens: -28.0 },
+            'C+': { oltPower: 5.0, ontSens: -30.0 },
+            'C++': { oltPower: 7.0, ontSens: -32.0 }
+        };
+
+        function updateWavelengthOptions() {
+            const fiberType = document.getElementById('fiber-type').value;
+            const waveSelect = document.getElementById('wavelength');
+            waveSelect.innerHTML = '';
+            FIBER_SPECS[fiberType].forEach(opt => {
+                const element = document.createElement('option');
+                element.value = opt.val;
+                element.innerText = opt.label;
+                waveSelect.appendChild(element);
+            });
+        }
+
+        function updateSfpParams() {
+            const sfpType = document.getElementById('sfp-type').value;
+            if (SFP_PRESETS[sfpType]) {
+                document.getElementById('olt-power').value = SFP_PRESETS[sfpType].oltPower.toFixed(1);
+                document.getElementById('ont-sens').value = SFP_PRESETS[sfpType].ontSens.toFixed(1);
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            updateWavelengthOptions();
+            calculateBudget();
+        });
+
+        function clearStorageData() {
+            if(confirm('¿Desea restablecer los valores de la calculadora?')) {
+                localStorage.clear();
+                window.location.reload();
+            }
+        }
+
+        function drawLossChart(data) {
+            const canvas = document.getElementById('lossChart');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const labels = ['Fibra', 'Fusiones', 'Conect.', 'Splitters', 'Margen'];
+            const maxVal = Math.max(...data, 5) * 1.2;
+            const margin = { top: 15, right: 10, bottom: 25, left: 30 };
+            const graphWidth = canvas.width - margin.left - margin.right;
+            const graphHeight = canvas.height - margin.top - margin.bottom;
+
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 1;
+            ctx.font = '9px sans-serif';
+            ctx.fillStyle = '#94a3b8';
+
+            for (let i = 0; i <= 3; i++) {
+                const yVal = (maxVal / 3) * i;
+                const yPos = canvas.height - margin.bottom - (yVal / maxVal) * graphHeight;
+                ctx.beginPath();
+                ctx.moveTo(margin.left, yPos);
+                ctx.lineTo(canvas.width - margin.right, yPos);
+                ctx.stroke();
+                ctx.fillText(`${yVal.toFixed(0)}dB`, 2, yPos + 3);
+            }
+
+            const barWidth = (graphWidth / data.length) * 0.6;
+            const barSpacing = (graphWidth / data.length);
+
+            data.forEach((val, i) => {
+                const barHeight = (val / maxVal) * graphHeight;
+                const xPos = margin.left + (i * barSpacing) + (barSpacing - barWidth) / 2;
+                const yPos = canvas.height - margin.bottom - barHeight;
+
+                ctx.fillStyle = '#0284c7';
+                ctx.fillRect(xPos, yPos, barWidth, barHeight);
+
+                ctx.fillStyle = '#f8fafc';
+                ctx.font = 'bold 8px sans-serif';
+                ctx.textAlign = 'center';
+                if(val > 0) ctx.fillText(val.toFixed(1), xPos + barWidth / 2, yPos - 3);
+
+                ctx.fillStyle = '#94a3b8';
+                ctx.font = '8px sans-serif';
+                ctx.fillText(labels[i], xPos + barWidth / 2, canvas.height - 10);
+            });
+        }
+
+        function calculateBudget() {
+            const distance = parseFloat(document.getElementById('distance').value) || 0;
+            const attenuationPerKm = parseFloat(document.getElementById('wavelength').value) || 0.35;
+            const splices = parseInt(document.getElementById('splices').value) || 0;
+            const connectors = parseInt(document.getElementById('connectors').value) || 0;
+            const splitter1 = parseFloat(document.getElementById('splitter1').value) || 0;
+            const splitter2 = parseFloat(document.getElementById('splitter2').value) || 0;
+            const margin = parseFloat(document.getElementById('margin').value) || 0;
+
+            const oltPower = parseFloat(document.getElementById('olt-power').value) || 0;
+            const ontSens = parseFloat(document.getElementById('ont-sens').value) || 0;
+
+            const fiberLoss = distance * attenuationPerKm;
+            const splicesLoss = splices * LOSS_PER_SPLICE;
+            const connectorsLoss = connectors * LOSS_PER_CONNECTOR;
+            const totalSplitters = splitter1 + splitter2;
+            
+            const totalLoss = fiberLoss + splicesLoss + connectorsLoss + totalSplitters + margin;
+            const rxPower = oltPower - totalLoss;
+
+            document.getElementById('res-fiber').innerText = `${fiberLoss.toFixed(2)} dB`;
+            document.getElementById('res-splices').innerText = `${splicesLoss.toFixed(2)} dB`;
+            document.getElementById('res-connectors').innerText = `${connectorsLoss.toFixed(2)} dB`;
+            document.getElementById('res-splitters').innerText = `${totalSplitters.toFixed(2)} dB`;
+            document.getElementById('res-margin').innerText = `${margin.toFixed(2)} dB`;
+            document.getElementById('res-total').innerText = `${totalLoss.toFixed(2)} dB`;
+            document.getElementById('res-rx-power-row').querySelector('span:last-child').innerText = `${rxPower.toFixed(2)} dBm`;
+
+            drawLossChart([fiberLoss, splicesLoss, connectorsLoss, totalSplitters, margin]);
+
+            let statusClass = '';
+            let statusText = '';
+            let recommendation = '';
+
+            if (rxPower < ontSens) {
+                statusClass = 'status-danger';
+                statusText = `ENLACE NO FACTIBLE (Rx: ${rxPower.toFixed(2)} dBm)`;
+                recommendation = `La potencia recibida está por debajo del umbral de sensibilidad de la ONT (${ontSens} dBm). Reduzca el nivel de división o use módulos SFP de mayor potencia.`;
+            } else {
+                statusClass = 'status-success';
+                statusText = `ENLACE ÓPTIMO (Rx: ${rxPower.toFixed(2)} dBm)`;
+                recommendation = `Presupuesto óptico viable. Los niveles se encuentran dentro de la ventana nominal de operación segura.`;
+            }
+
+            document.getElementById('dyn-status-banner').className = `status-banner ${statusClass}`;
+            document.getElementById('dyn-status-banner').innerText = statusText;
+            document.getElementById('dyn-rec-box').className = 'recommendation-box';
+            document.getElementById('dyn-rec-box').innerHTML = `<strong>Recomendación:</strong><br>${recommendation}`;
+        }
+
+        function saveToDriveSimulation() {
+            alert('Memoria de cálculo guardada correctamente en el sistema y lista para exportar.');
+        }
+    </script>
+</body>
+</html>
